@@ -1,43 +1,66 @@
 Attribute VB_Name = "modPythonBridge"
 Option Explicit
 
-' Excel remains the configuration/review UI.  This module only exchanges
-' normalised UTF-8 CSV files with the fixed Python runtime beside the release.
+' Excel remains the configuration/review UI. This module only exchanges
+' normalised UTF-8 CSV files with the portable engine beside the release.
 Private Const PY_RUNTIME_FOLDER As String = "vat_python_runtime"
+Private Const PORTABLE_ENGINE_RELATIVE_PATH As String = "engine\VAT_Matcher_Engine.exe"
 
 Public Sub RunPythonPipeline()
     Dim runId As String, runRoot As String, inputFolder As String, outputFolder As String
-    Dim launcher As String, commandLine As String, exitCode As Long, shell As Object
+    Dim launcher As String, exitCode As Long
+    Dim stdoutPath As String, stderrPath As String
     On Error GoTo EH
     If Not TrackingLoadedThisSession() Then Err.Raise vbObjectError + 980, , "Hay chon va nap lai file P trong phien Excel hien tai."
     If Not PdfFolderSelectedThisSession() Then Err.Raise vbObjectError + 981, , "Hay chon lai thu muc PDF trong phien Excel hien tai."
     If ThisWorkbook.Worksheets("GR_DATA").ListObjects("tblGrData").ListRows.Count = 0 Then Err.Raise vbObjectError + 982, , "File P khong co du lieu de doi soat."
-    launcher = ThisWorkbook.Path & "\python\run_tool.bat"
-    If Len(Dir$(launcher)) = 0 Then Err.Raise vbObjectError + 983, , "Khong tim thay python\run_tool.bat canh file Excel. Hay dung dung bo release day du."
+    launcher = ThisWorkbook.Path & "\" & PORTABLE_ENGINE_RELATIVE_PATH
+    If Len(Dir$(launcher)) = 0 Then Err.Raise vbObjectError + 983, , "Khong tim thay " & PORTABLE_ENGINE_RELATIVE_PATH & " canh file Excel. Hay dung dung bo release day du; khong can cai Python."
     runId = "PY-" & Format$(Now, "yyyymmdd-hhnnss")
     runRoot = ThisWorkbook.Path & "\" & PY_RUNTIME_FOLDER & "\" & runId
     inputFolder = runRoot & "\input"
     outputFolder = runRoot & "\output"
+    stdoutPath = outputFolder & "\engine_stdout.log"
+    stderrPath = outputFolder & "\engine_stderr.log"
     EnsureFolderPath inputFolder
     EnsureFolderPath outputFolder
     ExportPythonInput inputFolder, runId
-    LogEvent "INFO", "RunPythonPipeline", "PYTHON_ENGINE_START", "Da xuat file P va cau hinh; dang chay Python parser/matcher.", PdfFolderPath(), "Cho Python hoan tat, sau do xem BC_HOA_DON."
-    commandLine = "cmd.exe /d /c " & CmdQuote(launcher) & " --input " & CmdQuote(inputFolder) & " --output " & CmdQuote(outputFolder)
-    Set shell = CreateObject("WScript.Shell")
-    Application.StatusBar = "VAT Matcher: Python dang doc PDF va doi soat..."
-    exitCode = shell.Run(commandLine, 0, True)
+    LogEvent "INFO", "RunPythonPipeline", "PORTABLE_ENGINE_START", "Da xuat file P va cau hinh; dang chay engine PDF dong goi.", PdfFolderPath(), "Engine portable khong can cai Python; sau khi xong xem BC_HOA_DON."
+    Application.StatusBar = "VAT Matcher: Engine dang doc PDF va doi soat..."
+    exitCode = RunPortableEngine(launcher, inputFolder, outputFolder, stdoutPath, stderrPath)
     Application.StatusBar = False
-    If exitCode <> 0 Then Err.Raise vbObjectError + 984, , "Python engine ket thuc voi ma " & CStr(exitCode) & ". Kiem tra " & runRoot
-    If Len(Dir$(outputFolder & "\engine_result.json")) = 0 Then Err.Raise vbObjectError + 985, , "Python khong tao engine_result.json."
+    If exitCode <> 0 Then Err.Raise vbObjectError + 984, , PortableEngineFailureMessage(exitCode, stderrPath, runRoot)
+    If Len(Dir$(outputFolder & "\engine_result.json")) = 0 Then Err.Raise vbObjectError + 985, , "Engine portable khong tao engine_result.json. Kiem tra " & runRoot
     ImportPythonOutput outputFolder
     CreateRenamePreviews
-    LogEvent "INFO", "RunPythonPipeline", "PYTHON_ENGINE_OK", "Da nap ket qua Python vao bao cao Excel.", outputFolder, "Review BC_HOA_DON; chi nhap OK sau khi kiem tra."
+    LogEvent "INFO", "RunPythonPipeline", "PORTABLE_ENGINE_OK", "Da nap ket qua engine portable vao bao cao Excel.", outputFolder, "Review BC_HOA_DON; chi nhap OK sau khi kiem tra."
     Exit Sub
 EH:
     Application.StatusBar = False
     LogError "RunPythonPipeline", "PYTHON_ENGINE_FAILED", Err.Description, outputFolder
     Err.Raise Err.Number, , Err.Description
 End Sub
+
+Private Function RunPortableEngine(ByVal launcher As String, ByVal inputFolder As String, ByVal outputFolder As String, ByVal stdoutPath As String, ByVal stderrPath As String) As Long
+    Dim shell As Object, process As Object, commandLine As String
+    Set shell = CreateObject("WScript.Shell")
+    commandLine = CmdQuote(launcher) & " --input " & CmdQuote(inputFolder) & " --output " & CmdQuote(outputFolder)
+    Set process = shell.Exec(commandLine)
+    Do While process.Status = 0
+        DoEvents
+    Loop
+    WriteUtf8Text stdoutPath, process.StdOut.ReadAll
+    WriteUtf8Text stderrPath, process.StdErr.ReadAll
+    RunPortableEngine = process.ExitCode
+End Function
+
+Private Function PortableEngineFailureMessage(ByVal exitCode As Long, ByVal stderrPath As String, ByVal runRoot As String) As String
+    Dim detail As String
+    If Len(Dir$(stderrPath)) > 0 Then detail = Trim$(ReadUtf8Text(stderrPath))
+    If Len(detail) > 600 Then detail = Left$(detail, 600) & "..."
+    PortableEngineFailureMessage = "Engine portable ket thuc voi ma " & CStr(exitCode) & ". Kiem tra " & runRoot
+    If Len(detail) > 0 Then PortableEngineFailureMessage = PortableEngineFailureMessage & ". Chi tiet: " & detail
+End Function
 
 Private Sub ExportPythonInput(ByVal inputFolder As String, ByVal runId As String)
     ExportTableUtf8 ThisWorkbook.Worksheets("CONFIG").ListObjects("tblConfig"), inputFolder & "\config.csv"

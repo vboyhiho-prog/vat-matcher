@@ -30,6 +30,40 @@ def line(inv: Invoice, seq: int, material: str, qty: str) -> VatLine:
 
 
 class MatcherRulesTests(unittest.TestCase):
+    def test_portable_engine_handles_an_empty_pdf_folder_when_provided(self) -> None:
+        portable_engine = os.environ.get("VAT_MATCHER_PORTABLE_ENGINE")
+        if not portable_engine:
+            self.skipTest("Portable engine is built by the release script, not by source regression runs.")
+        engine_path = Path(portable_engine)
+        self.assertTrue(engine_path.is_file(), f"Missing portable engine: {engine_path}")
+        with tempfile.TemporaryDirectory(prefix="vat-matcher-portable-test-") as temp_root:
+            root = Path(temp_root)
+            input_dir, output_dir, pdf_dir = root / "input", root / "output", root / "pdf"
+            input_dir.mkdir()
+            pdf_dir.mkdir()
+            (input_dir / "run_config.json").write_text(json.dumps({"run_id": "T-PORTABLE", "pdf_folder": str(pdf_dir)}), encoding="utf-8")
+            table_headers = {
+                "config.csv": ["Key", "Value", "Description"],
+                "gr_data.csv": ["SourceRow", "ReceiptNo", "Material", "Vendor", "QtyDoc", "QtyActual", "QtyMatch", "IB", "GRDate", "Flags"],
+                "ncc_map.csv": ["CanonicalVendor", "TaxCode", "RawAlias", "FileAlias", "ParserProfile", "Active"],
+                "parser_profiles.csv": ["ProfileID", "CanonicalVendor", "TaxCode", "InvoiceNoPattern", "DatePattern", "LinePattern", "Status", "SamplePdf", "Notes"],
+                "material_scope_map.csv": ["MaterialNorm", "ScopeStatus", "Note"],
+                "material_ncc_map.csv": ["MaterialNorm", "CanonicalVendor", "Source", "Active", "Note"],
+            }
+            for filename, headers in table_headers.items():
+                with (input_dir / filename).open("w", encoding="utf-8-sig", newline="") as handle:
+                    csv.writer(handle).writerow(headers)
+            health = subprocess.run([str(engine_path), "--self-check"], capture_output=True, text=True, check=False)
+            self.assertEqual(0, health.returncode, health.stderr)
+            self.assertTrue(json.loads(health.stdout)["frozen"])
+            completed = subprocess.run(
+                [str(engine_path), "--input", str(input_dir), "--output", str(output_dir)],
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            self.assertTrue((output_dir / "engine_result.json").exists())
+            self.assertTrue((output_dir / "invoice_report.csv").exists())
+
     def test_fixed_runtime_entry_point_handles_an_empty_pdf_folder(self) -> None:
         with tempfile.TemporaryDirectory(prefix="vat-matcher-test-") as temp_root:
             root = Path(temp_root)

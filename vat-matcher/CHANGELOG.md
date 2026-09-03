@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.44
+
+- Đóng gói parser/matcher PyMuPDF thành `engine\VAT_Matcher_Engine.exe` dạng
+  portable (one-folder). Máy chạy chỉ cần giữ nguyên gói release, không cần
+  cài Python/PyMuPDF/pip hoặc đặt `VAT_MATCHER_PYTHON`.
+- Excel gọi trực tiếp engine portable; khi lỗi, `engine_stdout.log` và
+  `engine_stderr.log` được giữ trong thư mục run để chẩn đoán.
+- Release build bắt buộc self-check engine đã freeze và chạy regression thực
+  tế qua file `.exe`; Power Query vẫn chỉ là lựa chọn cho nạp P, không đọc PDF.
+
 ## 1.43
 
 - Nút **XÓA DỮ LIỆU PHIÊN CŨ** giữ `GR_DATA`, đường dẫn file P và `LOG`.

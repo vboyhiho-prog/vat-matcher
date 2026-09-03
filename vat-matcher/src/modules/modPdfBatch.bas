@@ -2,7 +2,7 @@ Attribute VB_Name = "modPdfBatch"
 Option Explicit
 
 ' The selected folder is intentionally only a path in the Excel UI. PDF
-' extraction is owned by python\engine.py, so no Office PDF connector is used.
+' extraction is owned by the bundled portable engine, so no Office PDF connector is used.
 Private mPdfFolderSelectedThisSession As Boolean
 
 Public Function PdfFolderSelectedThisSession() As Boolean

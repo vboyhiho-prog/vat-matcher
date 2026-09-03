@@ -4,3 +4,4 @@ PY02,Invoice date 2026-09-10; GR dates 2026-09-04 and 2026-09-13,Both sources ex
 PY03,Two codes; one receipt covers both,The shared receipt is selected before equal alternatives spread across receipts
 PY04,Two invoices demand same SourceRow,First invoice owns source; second is SUSPECT with no reused allocation
 PY05,run_tool.bat with exported empty-PDF input,Exit 0 and produces normalised CSV outputs plus engine_result.json
+PY06,VAT_Matcher_Engine.exe with exported empty-PDF input,Portable EXE self-checks as frozen and produces normalised CSV outputs plus engine_result.json

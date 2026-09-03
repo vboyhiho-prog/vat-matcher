@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '1.43',
+    [string]$Version = '1.44',
     [switch]$ForceRebuild,
     [switch]$CleanDiagnostics
 )
@@ -11,17 +11,31 @@ $source = Join-Path $projectRoot 'VAT_Matcher_v1.40.xlsm'
 $outputDir = Join-Path $workspaceRoot ('outputs\vat-matcher-v' + $Version)
 $target = Join-Path $outputDir ('VAT_Matcher_v' + $Version + '.xlsm')
 $manifest = Join-Path $outputDir ('VAT_Matcher_v' + $Version + '.sha256')
+$archive = Join-Path $outputDir ('VAT_Matcher_v' + $Version + '_portable.zip')
+$archiveManifest = Join-Path $outputDir ('VAT_Matcher_v' + $Version + '_portable.sha256')
 $buildReport = Join-Path $outputDir 'BUILD_REPORT.md'
-$runtimeSource = Join-Path $projectRoot 'python'
-$runtimeTarget = Join-Path $outputDir 'python'
+$engineSource = Join-Path $projectRoot 'python\engine.py'
+$engineTarget = Join-Path $outputDir 'engine'
+$legacyRuntimeTarget = Join-Path $outputDir 'python'
 $sessionTarget = Join-Path $outputDir 'vat_python_runtime'
+$portablePayload = Join-Path $outputDir '_portable_payload'
+$pyInstallerWork = Join-Path $workspaceRoot ('outputs\pyinstaller-work-v' + $Version)
+$pyInstallerSpec = Join-Path $workspaceRoot ('outputs\pyinstaller-spec-v' + $Version)
 $buildStart = Get-Date
 
 if (-not (Test-Path -LiteralPath $source)) { throw "Release source does not exist: $source" }
-if (-not (Test-Path -LiteralPath $runtimeSource)) { throw "Python runtime source does not exist: $runtimeSource" }
+if (-not (Test-Path -LiteralPath $engineSource)) { throw "Python engine source does not exist: $engineSource" }
 if (Test-Path -LiteralPath $target) {
     if (-not $ForceRebuild) { throw "Refusing to overwrite an existing release: $target" }
     Remove-Item -LiteralPath $target -Force
+}
+if (Test-Path -LiteralPath $archive) {
+    if (-not $ForceRebuild) { throw "Refusing to overwrite an existing portable archive: $archive" }
+    Remove-Item -LiteralPath $archive -Force
+}
+if (Test-Path -LiteralPath $archiveManifest) {
+    if (-not $ForceRebuild) { throw "Refusing to overwrite an existing portable archive manifest: $archiveManifest" }
+    Remove-Item -LiteralPath $archiveManifest -Force
 }
 New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 if ($CleanDiagnostics) {
@@ -35,7 +49,7 @@ if ($CleanDiagnostics) {
     }
 }
 Copy-Item -LiteralPath $source -Destination $target
-foreach ($releaseChild in @($runtimeTarget, $sessionTarget)) {
+foreach ($releaseChild in @($engineTarget, $legacyRuntimeTarget, $sessionTarget, $portablePayload)) {
 if (Test-Path -LiteralPath $releaseChild) {
     $resolvedOutput = [System.IO.Path]::GetFullPath($outputDir)
     $resolvedChild = [System.IO.Path]::GetFullPath($releaseChild)
@@ -45,17 +59,41 @@ if (Test-Path -LiteralPath $releaseChild) {
     Remove-Item -LiteralPath $releaseChild -Recurse -Force
 }
 }
-New-Item -ItemType Directory -Path $runtimeTarget | Out-Null
-foreach ($runtimeFile in @('engine.py', 'run_tool.bat', 'requirements.lock', 'README.md')) {
-    Copy-Item -LiteralPath (Join-Path $runtimeSource $runtimeFile) -Destination (Join-Path $runtimeTarget $runtimeFile) -Force
+
+foreach ($buildChild in @($pyInstallerWork, $pyInstallerSpec)) {
+    if (Test-Path -LiteralPath $buildChild) { Remove-Item -LiteralPath $buildChild -Recurse -Force }
 }
+New-Item -ItemType Directory -Path $portablePayload -Force | Out-Null
+Write-Output 'BUILD: packaging the PyMuPDF engine as a portable Windows application.'
+& python -m PyInstaller --noconfirm --clean --onedir --name VAT_Matcher_Engine --distpath $portablePayload --workpath $pyInstallerWork --specpath $pyInstallerSpec --collect-binaries pymupdf --exclude-module pandas --exclude-module numpy --exclude-module scipy --exclude-module PIL --exclude-module lxml --exclude-module pytest --exclude-module torch $engineSource
+if ($LASTEXITCODE -ne 0) { throw 'Portable engine packaging failed.' }
+$builtEngine = Join-Path $portablePayload 'VAT_Matcher_Engine'
+$portableExe = Join-Path $builtEngine 'VAT_Matcher_Engine.exe'
+if (-not (Test-Path -LiteralPath $portableExe)) { throw "Portable engine executable was not created: $portableExe" }
+Move-Item -LiteralPath $builtEngine -Destination $engineTarget
+Remove-Item -LiteralPath $portablePayload -Recurse -Force
+$portableExe = Join-Path $engineTarget 'VAT_Matcher_Engine.exe'
+if (-not (Test-Path -LiteralPath (Join-Path $engineTarget '_internal'))) { throw 'Portable engine dependency folder is missing.' }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'README.md') -Destination $outputDir -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'HUONG_DAN_SU_DUNG.md') -Destination $outputDir -Force
-Write-Output "BUILD: copied v1.40 workbook source and fixed Python runtime to v$Version package."
+@(
+    '# VAT Matcher portable engine', '',
+    '- Entry point: `engine\\VAT_Matcher_Engine.exe`.',
+    '- Keep the full `engine` folder, including `_internal`, beside the workbook.',
+    '- This package embeds its Python and PyMuPDF runtime. It does not use the machine `python`, `pip`, or `VAT_MATCHER_PYTHON`.',
+    '- Run `VAT_Matcher_Engine.exe --self-check` from Command Prompt only when support asks for runtime diagnostics.'
+) | Set-Content -LiteralPath (Join-Path $outputDir 'ENGINE_RUNTIME.md') -Encoding utf8
+Write-Output "BUILD: copied v1.40 workbook source and portable engine to v$Version package."
 
+$env:VAT_MATCHER_PORTABLE_ENGINE = $portableExe
 & python (Join-Path $projectRoot 'tests\test_python_engine.py')
 if ($LASTEXITCODE -ne 0) { throw 'Python engine regression tests failed.' }
-Write-Output 'BUILD: Python engine regression gate completed.'
+Remove-Item Env:VAT_MATCHER_PORTABLE_ENGINE -ErrorAction SilentlyContinue
+Write-Output 'BUILD: source and portable-engine regression gate completed.'
+
+$portableHealth = & $portableExe --self-check | ConvertFrom-Json
+if (-not $portableHealth.frozen -or $portableHealth.engine_version -ne $Version) { throw 'Portable engine self-check did not confirm the expected frozen runtime.' }
+Write-Output 'BUILD: portable engine self-check completed.'
 
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
@@ -90,7 +128,7 @@ try {
     $excel.Run($macroPrefix + 'SetupWorkbook')
     $excel.Run($macroPrefix + 'SetupDashboard')
     $config = $wb.Worksheets.Item('CONFIG').ListObjects.Item('tblConfig')
-    $requiredConfig = @{ GRBeforeInvoiceDays = '5'; GRAfterInvoiceDays = '2'; PdfIngestion = 'Python PyMuPDF' }
+    $requiredConfig = @{ GRBeforeInvoiceDays = '5'; GRAfterInvoiceDays = '2'; PdfIngestion = 'Portable Python Engine (PyMuPDF)' }
     foreach ($key in $requiredConfig.Keys) {
         $found = $false
         foreach ($row in @($config.ListRows)) {
@@ -155,13 +193,18 @@ $reportLines = @(
     ('- Workbook: ' + [System.IO.Path]::GetFileName($target)),
     ('- SHA-256: `' + $hash + '`'),
     ('- Imported VBA modules: ' + $moduleFiles.Count),
-    '- Python regression tests: 5 PASS; 0 FAIL.',
+    '- Python source and portable-engine regression tests: 6 PASS; 0 FAIL.',
     '- VBA compile gate and workbook reopen gate: PASS.',
-    '- PDF parser/matcher: bundled `python\run_tool.bat`; no Power Query PDF connector.',
+    '- PDF parser/matcher: bundled `engine\VAT_Matcher_Engine.exe` with `_internal`; no Power Query PDF connector or machine Python dependency.',
     '- Runtime GR/PDF/report/log tables and source paths are empty.'
 )
 Set-Content -LiteralPath $buildReport -Value $reportLines -Encoding utf8
+Compress-Archive -LiteralPath $target, $engineTarget, (Join-Path $outputDir 'README.md'), (Join-Path $outputDir 'HUONG_DAN_SU_DUNG.md'), (Join-Path $outputDir 'ENGINE_RUNTIME.md'), $manifest, $buildReport -DestinationPath $archive -CompressionLevel Optimal
+$archiveHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
+Set-Content -LiteralPath $archiveManifest -Value ("$archiveHash  " + [System.IO.Path]::GetFileName($archive)) -Encoding ascii
 Write-Output "PASS: $target"
 Write-Output "SHA256: $hash"
-Write-Output 'Python regression assertions: 5 PASS'
+Write-Output "PORTABLE PACKAGE: $archive"
+Write-Output "PORTABLE PACKAGE SHA256: $archiveHash"
+Write-Output 'Python regression assertions: 6 PASS'
 Write-Output ("Elapsed: " + [math]::Round(((Get-Date) - $buildStart).TotalSeconds, 1) + " seconds")

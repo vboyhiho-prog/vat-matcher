@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '1.43'
+    [string]$Version = '1.44'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,12 +9,32 @@ $outputDir = Join-Path $workspaceRoot ('outputs\vat-matcher-v' + $Version)
 $target = Join-Path $outputDir ('VAT_Matcher_v' + $Version + '.xlsm')
 $manifest = Join-Path $outputDir ('VAT_Matcher_v' + $Version + '.sha256')
 $buildReport = Join-Path $outputDir 'BUILD_REPORT.md'
+$archive = Join-Path $outputDir ('VAT_Matcher_v' + $Version + '_portable.zip')
+$archiveManifest = Join-Path $outputDir ('VAT_Matcher_v' + $Version + '_portable.sha256')
 if (-not (Test-Path -LiteralPath $target)) { throw "Release does not exist: $target" }
-if (-not (Test-Path -LiteralPath (Join-Path $outputDir 'python\run_tool.bat'))) { throw 'Release is missing python\run_tool.bat.' }
+if (-not (Test-Path -LiteralPath $archive)) { throw 'Release is missing its portable ZIP package.' }
+if (-not (Test-Path -LiteralPath $archiveManifest)) { throw 'Release is missing its portable ZIP manifest.' }
+$portableExe = Join-Path $outputDir 'engine\VAT_Matcher_Engine.exe'
+if (-not (Test-Path -LiteralPath $portableExe)) { throw 'Release is missing engine\VAT_Matcher_Engine.exe.' }
+if (-not (Test-Path -LiteralPath (Join-Path $outputDir 'engine\_internal'))) { throw 'Release is missing engine\_internal.' }
+if (Test-Path -LiteralPath (Join-Path $outputDir 'python')) { throw 'Release must not require a source Python runtime folder.' }
 if (Test-Path -LiteralPath (Join-Path $outputDir 'vat_python_runtime')) { throw 'Release contains a cached Python run folder.' }
+$expectedArchiveHash = (Get-Content -LiteralPath $archiveManifest -Raw).Split()[0]
+if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expectedArchiveHash) { throw 'Portable ZIP checksum does not match its manifest.' }
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
+try {
+    if ($null -eq @($zip.Entries | Where-Object { $_.FullName -eq 'engine/VAT_Matcher_Engine.exe' })[0]) { throw 'Portable ZIP is missing the engine executable.' }
+    if ($null -eq @($zip.Entries | Where-Object { $_.FullName -like 'engine/_internal/*' })[0]) { throw 'Portable ZIP is missing engine dependencies.' }
+}
+finally { $zip.Dispose() }
 
+$engineHealth = & $portableExe --self-check | ConvertFrom-Json
+if (-not $engineHealth.frozen -or $engineHealth.engine_version -ne $Version) { throw 'Portable engine self-check failed.' }
+$env:VAT_MATCHER_PORTABLE_ENGINE = $portableExe
 & python (Join-Path $projectRoot 'tests\test_python_engine.py')
 if ($LASTEXITCODE -ne 0) { throw 'Python engine regression tests failed.' }
+Remove-Item Env:VAT_MATCHER_PORTABLE_ENGINE -ErrorAction SilentlyContinue
 
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
@@ -60,4 +80,4 @@ $hash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
 Set-Content -LiteralPath $manifest -Value ("$hash  " + [System.IO.Path]::GetFileName($target)) -Encoding ascii
 Write-Output "PASS: $target"
 Write-Output "SHA256: $hash"
-Write-Output 'Python regression assertions: 5 PASS'
+Write-Output 'Python regression assertions: 6 PASS'

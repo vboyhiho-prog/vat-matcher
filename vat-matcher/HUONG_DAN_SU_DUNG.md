@@ -1,4 +1,8 @@
-# Hướng dẫn sử dụng VAT Matcher v1.43
+# Hướng dẫn sử dụng VAT Matcher v1.44
+
+Trước khi mở file lần đầu, giải nén **toàn bộ** `VAT_Matcher_v1.44_portable.zip`
+vào một thư mục local. Không mở `.xlsm` trực tiếp trong file ZIP và không tách
+thư mục `engine` ra khỏi workbook.
 
 ## Một phiên làm việc
 
@@ -8,7 +12,7 @@
 3. Bấm **CHỌN & NẠP LẠI FILE P**, luôn chọn file Theo dõi P mới nhất. File
    nguồn được mở chỉ đọc và nạp vào `GR_DATA`.
 4. Bấm **KIỂM TRA & KHỚP PHIẾU**. Không đóng Excel trong lúc thanh trạng thái
-   báo Python đang đọc PDF và đối soát.
+báo engine đang đọc PDF và đối soát.
 5. Xem `BC_HOA_DON`: số phiếu đề xuất, điểm phủ mã, trạng thái và Note. Xem
    `ALLOCATIONS` khi cần biết từng mã VAT đã lấy số lượng từ dòng/phiếu nào.
 
@@ -41,9 +45,11 @@
   chẩn đoán lưu thành công, LOG trong workbook được xóa; nếu export lỗi, LOG
   vẫn được giữ nguyên.
 
-## Khi có lỗi Python
+## Khi có lỗi engine portable
 
-Đảm bảo thư mục `python` nằm cạnh workbook. `run_tool.bat` cần Python đã duyệt
-có PyMuPDF. Nếu runtime ở vị trí riêng, IT đặt `VAT_MATCHER_PYTHON` tới
-`python.exe`. Không tự cài thêm package từ Excel. Xem `LOG` và thư mục
-`vat_python_runtime` cạnh workbook để gửi gói chẩn đoán cho người hỗ trợ.
+Đảm bảo thư mục `engine` nằm cạnh workbook và vẫn còn toàn bộ thư mục con
+`engine\_internal`. Không cần cài Python, `pip`, PyMuPDF hay đặt biến môi trường
+trên máy công ty. Không tự cài thêm package từ Excel. Xem `LOG`,
+`vat_python_runtime` và file `engine_stderr.log` trong thư mục run để gửi gói
+chẩn đoán cho người hỗ trợ. Nếu Windows chặn `.exe`, IT cần allow-list nguyên
+gói tool; Power Query không phải phương án thay thế cho đọc PDF.

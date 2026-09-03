@@ -36,12 +36,12 @@ End Sub
 
 Private Sub CheckPythonRuntime(ByVal results As ListObject, ByRef passCount As Long, ByRef failCount As Long)
     Dim launcher As String
-    launcher = ThisWorkbook.Path & "\python\run_tool.bat"
+    launcher = ThisWorkbook.Path & "\engine\VAT_Matcher_Engine.exe"
     If Len(Dir$(launcher)) > 0 Then
-        AddResult results, "T10_PYTHON_RUNTIME", "python\\run_tool.bat beside workbook", "Found", "PASS", "Excel will call the fixed Python entry point."
+        AddResult results, "T10_PORTABLE_ENGINE", "engine\\VAT_Matcher_Engine.exe beside workbook", "Found", "PASS", "Excel will call the portable engine; no machine Python is required."
         passCount = passCount + 1
     Else
-        AddResult results, "T10_PYTHON_RUNTIME", "python\\run_tool.bat beside workbook", "Missing", "FAIL", "Use the complete release folder; do not copy only the xlsm."
+        AddResult results, "T10_PORTABLE_ENGINE", "engine\\VAT_Matcher_Engine.exe beside workbook", "Missing", "FAIL", "Use the complete release folder; do not copy only the xlsm."
         failCount = failCount + 1
     End If
 End Sub

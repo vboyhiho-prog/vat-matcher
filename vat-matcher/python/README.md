@@ -1,14 +1,13 @@
-# VAT Matcher Python runtime
+# VAT Matcher engine source (development only)
 
-`run_tool.bat` is the stable entry point used by the Excel workbook. It takes
-`--input <folder>` and `--output <folder>`. Excel creates those folders and
-exchanges UTF-8 CSV files only; it does not pass workbook credentials or edit
-the source Tracking P file.
+`engine.py` and `run_tool.bat` support development tests and packaging only.
+They are not distributed as the production runtime. The workbook in a release
+calls `engine\VAT_Matcher_Engine.exe`; Excel creates the CSV folders and does
+not pass workbook credentials or edit the source Tracking P file.
 
-The approved internal Python runtime must include `PyMuPDF==1.28.2`. Set the
-machine environment variable `VAT_MATCHER_PYTHON` to its `python.exe` when it
-is not the `python` command on `PATH`. The batch file does not install packages
-or download anything.
+The build computer needs `PyMuPDF==1.28.2` and PyInstaller. PyInstaller embeds
+that fixed runtime into the release `engine` folder. End-user machines do not
+need Python, PyMuPDF, PyInstaller or `VAT_MATCHER_PYTHON`.
 
 The engine never renames files. It emits suggested names and match evidence;
 the existing Excel `OK` / `NG` review and rename/rollback controls remain the

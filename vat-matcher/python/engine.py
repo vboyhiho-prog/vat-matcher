@@ -24,13 +24,14 @@ from typing import Any, Iterable
 
 try:
     import pymupdf
-except ImportError as exc:  # surfaced by run_tool.bat before Excel imports anything
+except ImportError as exc:
     raise SystemExit(
-        "PyMuPDF is required. Install the approved fixed environment, then set "
-        "VAT_MATCHER_PYTHON to that Python executable."
+        "PyMuPDF is required by the VAT Matcher engine. Use the complete "
+        "portable release folder, including engine\\_internal."
     ) from exc
 
 
+ENGINE_VERSION = "1.44"
 EPSILON = Decimal("0.0001")
 MAX_PLAN_ROWS = 220
 MAX_DP_STATES = 30000
@@ -841,11 +842,28 @@ def run(input_dir: Path, output_dir: Path) -> dict[str, Any]:
     return summary
 
 
+def portable_runtime_info() -> dict[str, Any]:
+    """Return a compact support record for the portable engine."""
+    return {
+        "engine": "VAT Matcher",
+        "engine_version": ENGINE_VERSION,
+        "pymupdf_version": str(getattr(pymupdf, "VersionBind", "unknown")),
+        "python_version": sys.version.split()[0],
+        "frozen": bool(getattr(sys, "frozen", False)),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="VAT Matcher PDF parser and matcher")
-    parser.add_argument("--input", required=True, type=Path, help="Excel-exported input directory")
-    parser.add_argument("--output", required=True, type=Path, help="Directory for normalised output CSVs")
+    parser.add_argument("--input", type=Path, help="Excel-exported input directory")
+    parser.add_argument("--output", type=Path, help="Directory for normalised output CSVs")
+    parser.add_argument("--self-check", action="store_true", help="Print portable-runtime health information")
     args = parser.parse_args(argv)
+    if args.self_check:
+        print(json.dumps(portable_runtime_info(), ensure_ascii=False))
+        return 0
+    if args.input is None or args.output is None:
+        parser.error("--input and --output are required unless --self-check is used")
     try:
         summary = run(args.input, args.output)
     except Exception as exc:

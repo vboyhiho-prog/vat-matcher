@@ -1,4 +1,4 @@
-# VAT Matcher v1.43
+# VAT Matcher v1.44
 
 ## Architecture
 
@@ -7,7 +7,7 @@ Excel xlsm
   - cấu hình NCC/MST và mã vật tư → NCC
   - nạp file Theo dõi P, báo cáo, Note, OK/NG đổi tên
         ↓  UTF-8 CSV
-Python engine (python/run_tool.bat)
+Portable engine (engine/VAT_Matcher_Engine.exe)
   - đọc PDF text layer / báo NEEDS_OCR
   - parser theo mẫu NCC
   - đối soát số lượng, ngày và capacity
@@ -42,7 +42,7 @@ Python không có chức năng đổi tên.
 
 1. Mở workbook và **Enable Content**.
 2. Chọn thư mục PDF, rồi chọn và nạp lại file P mới nhất.
-3. Bấm **KIỂM TRA & KHỚP PHIẾU**. Excel xuất input, gọi `python/run_tool.bat`,
+3. Bấm **KIỂM TRA & KHỚP PHIẾU**. Excel xuất input, gọi `engine/VAT_Matcher_Engine.exe`,
    sau đó nạp báo cáo lại vào các sheet hiện có.
 4. Đọc `BC_HOA_DON`, `ALLOCATIONS`, `BC_PHIEU` và `LOG`.
 5. Chỉ sau khi kiểm tra, nhập `OK` ở cột `Decision`, tạo preview rồi đổi tên
@@ -53,13 +53,19 @@ nguyên `GR_DATA` và đường dẫn file P đang nạp; file P chỉ bị thay
 chủ động nạp lại. `LOG` cũng được giữ để tra lỗi qua nhiều lần chạy và chỉ được
 xóa sau khi **Xuất gói chẩn đoán** lưu thành công bản sao chẩn đoán.
 
-## Runtime Python cố định
+## Engine portable — không cần cài Python
 
-Giữ cả thư mục `python` nằm cạnh workbook release. `run_tool.bat` gọi Python
-được cấu hình cố định và kiểm tra `PyMuPDF==1.28.2`; nó không tự cài thư viện
-hay tải bất kỳ thành phần nào. Nếu Python công ty không nằm trên `PATH`, IT chỉ
-cần đặt biến môi trường `VAT_MATCHER_PYTHON` trỏ tới `python.exe` của bộ runtime
-đã duyệt.
+Giữ cả thư mục `engine` nằm cạnh workbook release, bao gồm `engine\_internal`.
+`VAT_Matcher_Engine.exe` đã nhúng Python và `PyMuPDF`; máy công ty không cần
+cài Python, `pip`, package hay biến môi trường `VAT_MATCHER_PYTHON`. Không copy
+riêng mỗi file `.xlsm` hoặc riêng file `.exe`.
+
+Khi phát cho máy khác, dùng file `VAT_Matcher_v1.44_portable.zip`, giải nén
+toàn bộ vào một thư mục local rồi mở `.xlsm` từ chính thư mục đó.
+
+Nếu bị chặn chạy do chính sách IT/antivirus, gửi nguyên gói release cho IT để
+allow-list theo `VAT_Matcher_Engine.exe` và kiểm tra SHA-256 của workbook. Không
+chuyển ngược PDF sang Power Query.
 
 ## Thêm NCC mới
 

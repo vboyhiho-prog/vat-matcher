@@ -1,6 +1,6 @@
 # Architecture amendment — Python PDF and matching engine
 
-Status: adopted for v1.42 on 2026-09-03.
+Status: adopted for v1.42; portable delivery adopted for v1.44 on 2026-09-04.
 
 ## Decision
 
@@ -10,7 +10,7 @@ regression testing impractical. Excel remains the configuration, review and
 rename interface; Python owns PDF extraction and matching.
 
 ```text
-Excel xlsm -- CSV input --> python/run_tool.bat -- CSV output --> Excel xlsm
+Excel xlsm -- CSV input --> engine/VAT_Matcher_Engine.exe -- CSV output --> Excel xlsm
 ```
 
 The workbook exports `CONFIG`, `GR_DATA`, NCC maps, parser profiles and scope
@@ -20,11 +20,12 @@ system is contacted. Neither VBA nor Python modifies the Tracking P source.
 
 ## Runtime contract
 
-- Entry point: the `python/run_tool.bat` shipped beside the release workbook.
-- Dependency: approved fixed environment with `PyMuPDF==1.28.2`; the batch file
-  only validates it and never installs/down-loads packages.
-- `VAT_MATCHER_PYTHON` may point at the approved `python.exe`; otherwise
-  `python` on `PATH` is used.
+- Entry point: `engine\VAT_Matcher_Engine.exe` beside the release workbook.
+- Dependency: the engine is a PyInstaller one-folder bundle with
+  `PyMuPDF==1.28.2` and its own embedded Python runtime. Keep `_internal`
+  intact beside the executable.
+- End-user machines do not use `python` on `PATH`, `pip` or
+  `VAT_MATCHER_PYTHON`. Source `python/run_tool.bat` remains development-only.
 - Textless PDFs become `NEEDS_OCR`. OCR is an explicit later step, never a
   silent substitution.
 - Parser profiles remain governed by `NCC_CONFIG_IMPORT` / `PARSER_PROFILES`;
