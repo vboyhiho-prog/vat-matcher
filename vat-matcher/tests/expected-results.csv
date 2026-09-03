@@ -1,0 +1,12 @@
+test_id,input,expected
+T02,Re_ KHGH OS NGAY 27_8.msg,4 PDF extracted and 2 PNG skipped
+T04,VATNCC.pdf,00002966|00002958|00002960|00002961|00002965
+T06,00002966,5003|MATCHED
+T07,00002958,5013|MATCHED
+T08,00002960,5013|MATCHED
+T09,00002965,5013|MATCHED
+T10,00002961,PARTIAL_MATCHED|review-only|score based on matched-line percentage|rename only after manual OK
+T12,00002212,4983+5005+5007|PARTIAL_MATCHED|0<score<100|Decision blank
+T13,Email body,IB 185068322-185068328 linked to receipt 5007
+T21,Global capacity,No SourceRow allocation total exceeds QtyMatch
+T22,Global source ownership,No SourceRow is assigned to more than one invoice
