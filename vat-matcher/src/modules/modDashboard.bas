@@ -138,11 +138,7 @@ Public Sub DashboardRunMatching()
     If Not TrackingLoadedThisSession() Then Err.Raise vbObjectError + 960, , "Hay chon va nap lai file P trong phien Excel hien tai."
     If Not PdfFolderSelectedThisSession() Then Err.Raise vbObjectError + 961, , "Hay chon lai thu muc PDF trong phien Excel hien tai."
     If ThisWorkbook.Worksheets("GR_DATA").ListObjects("tblGrData").ListRows.Count = 0 Then Err.Raise vbObjectError + 962, , "File P khong co du lieu."
-    RefreshPdfBatch
-    ParsePdfRawToInvoices
-    ParseVatLinesFromPdfRaw
-    RunMatch
-    BuildReceiptReport
+    RunPythonPipeline
     UpdateDashboard
     pdfCount = ThisWorkbook.Worksheets("PDF_FILES").ListObjects("tblPdfFiles").ListRows.Count
     CountPdfReportStates matchedCount, mixedCount, reviewCount

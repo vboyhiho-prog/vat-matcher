@@ -13,7 +13,7 @@ Public Sub ExportDiagnosticBundle()
     mDiagnosticExportOk = False
     ExportDiagnosticBundleToFolder outputFolder
     If mDiagnosticExportOk Then
-        MsgBox "Diagnostic bundle created. Send the .xlsx file back with the workbook LOG if support is needed.", vbInformation
+        MsgBox "Diagnostic bundle created. LOG da duoc luu trong goi va xoa khoi workbook de bat dau lich su moi.", vbInformation
     Else
         MsgBox "Diagnostic export failed. Review LOG.", vbCritical
     End If
@@ -29,6 +29,9 @@ Public Sub ExportDiagnosticBundleToFolder(ByVal outputFolder As String)
     If fso.FileExists(outputPath) Then Err.Raise vbObjectError + 931, , "Diagnostic filename already exists. Try again."
     sheetNames = Array("LOG", "BC_HOA_DON", "BC_PHIEU", "VAT_LINES", "PDF_FILES", "EMAIL_HINTS", "MATERIAL_SCOPE_MAP", "CONFIG", "TEST_RESULTS")
     originalAlerts = Application.DisplayAlerts
+    'Write this before copying so the bundle contains the whole history up to
+    'the moment it is archived. The source LOG is cleared only after SaveAs.
+    LogEvent "INFO", "ExportDiagnosticBundleToFolder", "DIAGNOSTIC_EXPORT_ARCHIVING", outputPath, "", "LOG will be cleared only after this workbook is saved successfully."
     Set destination = Workbooks.Add(xlWBATWorksheet)
     For i = LBound(sheetNames) To UBound(sheetNames)
         If i > LBound(sheetNames) Then destination.Worksheets.Add After:=destination.Worksheets(destination.Worksheets.Count)
@@ -36,8 +39,8 @@ Public Sub ExportDiagnosticBundleToFolder(ByVal outputFolder As String)
     Next i
     destination.SaveAs outputPath, xlOpenXMLWorkbook
     destination.Close SaveChanges:=True
+    ClearDiagnosticLogHistory
     mDiagnosticExportOk = True
-    LogEvent "INFO", "ExportDiagnosticBundleToFolder", "DIAGNOSTIC_EXPORT_OK", outputPath, "", "Send the generated .xlsx with a support request."
     Exit Sub
 EH:
     errorDetail = Err.Description
@@ -46,6 +49,12 @@ EH:
     If Not destination Is Nothing Then destination.Close SaveChanges:=False
     On Error GoTo 0
     LogError "ExportDiagnosticBundleToFolder", "DIAGNOSTIC_EXPORT_FAILED", errorDetail, outputFolder
+End Sub
+
+Private Sub ClearDiagnosticLogHistory()
+    Dim lo As ListObject
+    Set lo = ThisWorkbook.Worksheets("LOG").ListObjects("tblLog")
+    If Not lo.DataBodyRange Is Nothing Then lo.DataBodyRange.Delete
 End Sub
 
 Private Sub CopyDiagnosticSheetValues(ByVal sourceSheet As Worksheet, ByVal destinationSheet As Worksheet, ByVal destinationName As String)

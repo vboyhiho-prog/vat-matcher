@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.43
+
+- Nút **XÓA DỮ LIỆU PHIÊN CŨ** giữ `GR_DATA`, đường dẫn file P và `LOG`.
+  `LOG` được archive vào diagnostic bundle và chỉ xóa sau khi export thành công.
+
+## 1.42
+
+- Thay toàn bộ pipeline Power Query PDF và VBA regex bằng `python/run_tool.bat`
+  + PyMuPDF. Excel chỉ xuất/nạp bảng dữ liệu chuẩn UTF-8, giữ cấu hình, báo
+  cáo, `OK/NG`, đổi tên an toàn và rollback.
+- Một mã VAT được khớp theo tổng số lượng của nhiều phiếu/dòng GR; ví dụ 1.000
+  pcs có thể là 300 + 200 + 500 trên ba số phiếu. Chỉ tổ hợp tổng chính xác mới
+  được allocation.
+- Matcher ưu tiên hoàn thành nhiều mã VAT nhất, ưu tiên tái dùng số phiếu bao
+  phủ nhiều mã, rồi mới ưu tiên GR gần ngày hóa đơn.
+- Bỏ bộ lọc tuyệt đối ±2 ngày. Thêm `GRBeforeInvoiceDays=5` và
+  `GRAfterInvoiceDays=2` trong `CONFIG`.
+- Note partial chuẩn hóa dạng `Khớp x/y mã với số phiếu ...; còn z mã ... không
+  tìm thấy phiếu phù hợp.`
+- Thêm regression test Python cho tổng ba phiếu, cửa sổ ngày bất đối xứng, ưu
+  tiên phiếu đa mã và ownership/capacity toàn batch.
+
 ## 1.41
 
 - Giu `PARTIAL_MATCHED` de hien phieu/ten goi y, nhung diem cuoi la phan tram so dong vat tu khop chinh xac; ma lap lai duoc cham theo tung dong vi co the thuoc cac phieu khac nhau. Trang thai nay luon can review va Decision mac dinh de trong.

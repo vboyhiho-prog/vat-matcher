@@ -116,8 +116,10 @@ End Function
 
 Private Sub SeedConfig()
     Dim lo As ListObject: Set lo = Worksheets("CONFIG").ListObjects("tblConfig")
-    EnsureConfigRow lo, "DateWindowDays", 2, "Allowed invoice/GR date difference"
-    EnsureConfigRow lo, "PdfIngestion", "Power Query Pdf.Tables", "No external executable"
+    EnsureConfigRow lo, "GRBeforeInvoiceDays", 5, "Python matcher: GR may be before invoice by up to 5 days."
+    EnsureConfigRow lo, "GRAfterInvoiceDays", 2, "Python matcher: GR may be after invoice by up to 2 days."
+    EnsureConfigRow lo, "DateWindowDays", 2, "Legacy VBA setting only; Python uses the two asymmetric GR date settings above."
+    EnsureConfigRow lo, "PdfIngestion", "Python PyMuPDF", "PDF text extraction and matching run in the fixed Python runtime beside this workbook."
     EnsureConfigRow lo, "QtySource", "QTY_DOCUMENT", "QTY_DOCUMENT by default; QTY_ACTUAL is optional. Mismatch rows are review-only."
 End Sub
 

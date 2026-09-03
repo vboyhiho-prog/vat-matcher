@@ -1,0 +1,2 @@
+# Fixed runtime dependency for the internally packaged environment.
+PyMuPDF==1.28.2
