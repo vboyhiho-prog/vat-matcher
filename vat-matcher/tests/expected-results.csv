@@ -1,7 +1,0 @@
-test_id,input,expected
-PY01,One VAT code 1000; GR 300+200+500,One MATCHED code with receipt set 5001+5002+5003 and 3 allocation rows
-PY02,Invoice date 2026-09-10; GR dates 2026-09-04 and 2026-09-13,Both sources excluded by the -5/+2 asymmetric date policy
-PY03,Two codes; one receipt covers both,The shared receipt is selected before equal alternatives spread across receipts
-PY04,Two invoices demand same SourceRow,First invoice owns source; second is SUSPECT with no reused allocation
-PY05,run_tool.bat with exported empty-PDF input,Exit 0 and produces normalised CSV outputs plus engine_result.json
-PY06,VAT_Matcher_Engine.exe with exported empty-PDF input,Portable EXE self-checks as frozen and produces normalised CSV outputs plus engine_result.json
